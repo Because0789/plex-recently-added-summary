@@ -13,7 +13,7 @@
             - Checks 5 days previous(-d 5)
             - Both Facebook and Pushbullet(-n fp)
             - Fetch the last 500 episodes added to the server to check(-tv 500)
-            - Fetch the last 100 episodes added to the server to check(-m 100)
+            - Fetch the last 100 movies added to the server to check(-m 100)
             - Show the details for up to 5 episodes in each show before summarizing(-nd 5)
             - Don't send the notifications, instead print out the message created and other info,
               works with any non-zero(-t 1)
