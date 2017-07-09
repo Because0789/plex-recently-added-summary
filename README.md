@@ -46,8 +46,8 @@ TV Shows:
 --Heroes S04E01 - Orientation  
 --Heroes S04E02 - Jump, Push, Fall  
 -I Am Cait-  
---8 episodes added in Season 02. 
--Knights of Sidonia- 
+--8 episodes added in Season 02.
+-Knights of Sidonia-
 --11 episodes added in Season 02.  
 -Luther-  
 --Luther S01E03 - Episode 3  
