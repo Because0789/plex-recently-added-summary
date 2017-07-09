@@ -1,0 +1,11 @@
+{
+	"plex_username":"",
+	"plex_password":"",
+	"plex_servername":"",
+	"movie_library":"Movies",
+	"tvshow_library":"TV Shows",
+	"pushbullet_apikey":"",
+	"fb_accesstoken":"",
+	"fb_groupid":"",
+	"default_notifier":"a"
+}
