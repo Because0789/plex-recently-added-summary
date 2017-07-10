@@ -72,3 +72,10 @@ TV Shows:
 --8 episodes added in Season 02.  
 -Weeds-  
 --6 episodes added in Season 07.  
+
+### TODOs:  
+- Send email based on a whitelist in a file  
+- Loop through all library sections(More than just TV Shows and Movies) and make a message chunk for each  
+- Figure out how to get a permenant FB auth token  
+- Log out to log file(arg for whether or not to clear log file on run or append)  
+- Multiple Libraries?
