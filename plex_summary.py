@@ -116,7 +116,7 @@ def group_into_shows(_episodes):
             grp_lst2 = list(subgroup)
             lst_seasons.append(Season(key, subkey, grp_lst2, len(grp_lst2)))
         # Add a show to the list with all the bits grouped up properly
-            lst_shows_.append(Show(key, lst_seasons, len(grp_lst)))
+        lst_shows_.append(Show(key, lst_seasons, len(grp_lst)))
     return lst_shows_
 
 
