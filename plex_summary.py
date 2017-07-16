@@ -171,6 +171,8 @@ if __name__ == '__main__':
     # Create the times
     TODAY = int(time.time())
     LASTDATE = int(TODAY - num_days * 24 * 60 * 60)
+    today_datetime = datetime.datetime.fromtimestamp(TODAY)
+    lastdate_datetime = datetime.datetime.fromtimestamp(LASTDATE)
 
     # Get the Plex Server object
     account = MyPlexAccount.signin(settings.plex_username, settings.plex_password)
@@ -184,20 +186,17 @@ if __name__ == '__main__':
     movies = movies_section.recentlyAdded(max_movies)
     episodes = tvshows_section.recentlyAdded('episode', max_tv)
 
-    # Store the "start date" for seconds based time
-    startDate = datetime.datetime(1970, 1, 1)
-
     # Filter the episodes based on the passed in time frame
     filtered_episodes = []
     for episode in episodes:
-        if LASTDATE <= (episode.addedAt-startDate).total_seconds() <= TODAY:
+        if lastdate_datetime <= episode.addedAt <= today_datetime:
             filtered_episodes.append(Episode(episode.grandparentTitle, str(episode.parentIndex).zfill(2),
                                              str(episode.index).zfill(2), episode.title))
 
     # Filter the movies based on the passed in time frame
     filtered_movies = []
     for movie in movies:
-        if LASTDATE <= (movie.addedAt-startDate).total_seconds() <= TODAY:
+        if lastdate_datetime <= movie.addedAt <= today_datetime:
             filtered_movies.append(movie)
 
     # If there are any episodes that have been added with the time frame sort them into shows
