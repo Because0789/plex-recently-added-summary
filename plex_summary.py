@@ -18,6 +18,7 @@
             - Don't send the notifications, instead print out the message created and other info,
               works with any non-zero(-t 1)
 """
+from __future__ import unicode_literals
 
 import argparse
 import datetime
@@ -108,7 +109,7 @@ def group_into_shows(_episodes):
     sorted_episodes = sorted(_episodes, key=lambda x: (x.show_name.lower(), x.season_num00, x.episode_num00))
     lst_shows_ = []
     # Group the episodes by show
-    for key, group in groupby(sorted_episodes, key=lambda x: x.show_name.lower()):
+    for key, group in groupby(sorted_episodes, key=lambda x: x.show_name):
         lst_seasons = []
         grp_lst = list(group)
         # Group the episodes grouped into each show into seasons and add each group as a season in the current show
