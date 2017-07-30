@@ -105,10 +105,10 @@ def parse_tvshows(_shows, _num_detailed):
 
 def group_into_shows(_episodes):
     # Sort the list before groupby, otherwise bad things happen.
-    sorted_episodes = sorted(_episodes, key=lambda x: (x.show_name, x.season_num00, x.episode_num00))
+    sorted_episodes = sorted(_episodes, key=lambda x: (x.show_name.lower(), x.season_num00, x.episode_num00))
     lst_shows_ = []
     # Group the episodes by show
-    for key, group in groupby(sorted_episodes, key=lambda x: x.show_name):
+    for key, group in groupby(sorted_episodes, key=lambda x: x.show_name.lower()):
         lst_seasons = []
         grp_lst = list(group)
         # Group the episodes grouped into each show into seasons and add each group as a season in the current show
