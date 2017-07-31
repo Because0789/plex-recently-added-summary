@@ -1,14 +1,14 @@
 """
     Use Examples:
         python plex_summary.py
-            - Defaults to everything
+            - Defaults to:(unless you have edited args.json)
             - 1 Day(1)
             - All notifiers(a)
             - 200 max tv show episodes(200)
             - 50 max movies(50)
             - 2 detailed tv episodes per show(2)
             - Don't test the script without sending the notifications(0)
-            - Update the libraries and wait 10 min
+            - Don't update the libraries(0) and wait 10 min/600 sec
 
         python plex_summary.py -d 5 -n fp -tv 500 -m 100 -nd 5 -t 1 -u 1 -w 900
             - Checks 5 days previous(-d 5)
@@ -33,21 +33,43 @@ from collections import namedtuple
 from facepy import GraphAPI
 from itertools import groupby
 from plexapi.myplex import MyPlexAccount
-from plexapi.library import LibrarySection
 from pushbullet import Pushbullet
 
 NOTIFIERS = ['a', 'f', 'p', 'e']
 DATA_PATH = '/data'
+ARGS_FILE = 'args.json'
 SETTINGS_FILE = 'settings.json'
 LOG_FILE = 'log.txt'
 
+Args = namedtuple('Args', ['num_days', 'notifiers', 'max_movies', 'max_tv', 'num_detailed', 'test', 'update',
+                           'update_wait'])
+
 Settings = namedtuple('Settings', ['plex_username', 'plex_password', 'plex_servername', 'movie_library',
-                                   'tvshow_library', 'pushbullet_apikey', 'fb_accesstoken', 'fb_groupid',
-                                   'default_notifier'])
+                                   'tvshow_library', 'pushbullet_apikey', 'fb_accesstoken', 'fb_groupid'])
 
 Episode = namedtuple('Episode', ['show_name', 'season_num00', 'episode_num00', 'episode_name'])
 Season = namedtuple('Season',   ['show_name', 'season_num00', 'episodes', 'num_episodes'])
 Show = namedtuple('Show',       ['show_name', 'seasons', 'num_episodes'])
+
+
+def read_args(_file_path):
+    filename = '{0}/{1}/{2}'.format(_file_path, DATA_PATH, ARGS_FILE)
+    with open(filename) as data_file:
+        json_data = json.load(data_file)
+        return Args(
+            json_data['num_days'], json_data['notifiers'], json_data['max_movies'], json_data['max_tv'],
+            json_data['num_detailed'], json_data['test'], json_data['update'], json_data['update_wait'])
+
+
+def print_args(_args):
+    print(_args.num_days)
+    print(_args.notifiers)
+    print(_args.max_movies)
+    print(_args.max_tv)
+    print(_args.num_detailed)
+    print(_args.test)
+    print(_args.update)
+    print(_args.update_wait)
 
 
 def read_settings(_file_path):
@@ -57,7 +79,7 @@ def read_settings(_file_path):
         return Settings(
             json_data['plex_username'], json_data['plex_password'], json_data['plex_servername'],
             json_data['movie_library'], json_data['tvshow_library'], json_data['pushbullet_apikey'],
-            json_data['fb_accesstoken'], json_data['fb_groupid'], json_data['default_notifier'])
+            json_data['fb_accesstoken'], json_data['fb_groupid'])
 
 
 def parse_intro(_days, _settings):
@@ -139,49 +161,54 @@ def post_facebook(_message, _settings):
 
 if __name__ == '__main__':
 
+    file_path = os.path.dirname(sys.argv[0])
+    # Read in the default args from the args.json
+    default_args = read_args(file_path)
+    # Make sure the "default" is actually a valid option
+    if not any(notif in default_args.notifiers for notif in NOTIFIERS):
+        default_args.notifiers = 'a'
+
+    # Read in the settings from the settings.json
+    settings = read_settings(file_path)
+
     parser = argparse.ArgumentParser(description="Post to a Facebook Group and/or send a Pushbullet notification with "
                                                  + "what was added to Plex within a certain time frame")
-    parser.add_argument('-d', '--days', help='Time frame for which to check recently added to Plex.',
-                        required=False, type=int, default=1)
+    parser.add_argument('-d', '--days', help='Time frame for which to check recently added to Plex. Default:{0} '
+                                             'days'.format(default_args.num_days),
+                        required=False, type=int, default=default_args.num_days)
     parser.add_argument('-n', '--notifiers', help='Which notification services to used, concatenated for multiple.  '
-                                                  'Refer to documentation for full list. Default:a(all)',
-                        required=False, default='a')
-    parser.add_argument('-m', '--max_movies', help='Maximum number of movies to grab, default:50',
-                        required=False, type=int, default=50)
-    parser.add_argument('-tv', '--max_tv', help='Maximum number of episodes to grab, default:200',
-                        required=False, type=int, default=200)
+                                                  'Refer to documentation for full list. Default:{0}'
+                        .format(default_args.notifiers),
+                        required=False, default=default_args.notifiers)
+    parser.add_argument('-m', '--max_movies', help='Maximum number of movies to grab, default:{0}'
+                        .format(default_args.max_movies),
+                        required=False, type=int, default=default_args.max_movies)
+    parser.add_argument('-tv', '--max_tv', help='Maximum number of episodes to grab, default:{0}'
+                        .format(default_args.max_tv),
+                        required=False, type=int, default=default_args.max_tv)
     parser.add_argument('-nd', '--num_detailed',
-                        help='Maximum number of episodes to detail before collapsing down by season, default:2',
-                        required=False, type=int, default=2)
-    parser.add_argument('-t', '--test', help='If testing set to 1, otherwise 0.  Default is 0', required=False,
-                        type=int, default=0)
-    parser.add_argument('-u', '--update', help='If you want to update the library set to 1, otherwise 0. Default is 1',
-                        required=False, type=int, default=1)
-    parser.add_argument('-w', '--wait', help='How long to wait, in seconds, after updating the libraries. Default: 600',
-                        required=False, type=int, default=600)
+                        help='Maximum number of episodes to detail before collapsing down by season, default:{0}'
+                        .format(default_args.num_detailed),
+                        required=False, type=int, default=default_args.num_detailed)
+    parser.add_argument('-t', '--test', help='If testing set to 1, otherwise 0.  Default:{0}'
+                        .format(default_args.test),
+                        required=False, type=int, default=default_args.test)
+    parser.add_argument('-u', '--update', help='If you want to update the library set to 1, otherwise 0. Default:{0}'
+                        .format(default_args.update),
+                        required=False, type=int, default=default_args.update)
+    parser.add_argument('-w', '--wait', help='How long to wait, in seconds, after updating the libraries. Default:{0}'
+                        .format(default_args.update_wait),
+                        required=False, type=int, default=default_args.update_wait)
 
     opts = parser.parse_args()
 
-    # Grab the arguments/defaults
-    num_days = opts.days
-    notifiers = opts.notifiers
-    max_movies = opts.max_movies
-    max_tv = opts.max_tv
-    num_detailed = opts.num_detailed
-    test = opts.test
-    update = opts.update
-    wait = opts.wait
-
-    # Read in the settings from the settings.json
-    file_path = os.path.dirname(sys.argv[0])
-    settings = read_settings(file_path)
-    # Make sure the "default" is actually a valid option
-    if not any(notif in settings.default_notifier for notif in NOTIFIERS):
-        settings.default_notifier = 'a'
+    # Grab any passed in args
+    args = Args(opts.days, opts.notifiers, opts.max_movies, opts.max_tv,
+                opts.num_detailed, opts.test, opts.update, opts.wait)
 
     # Create the times
     TODAY = int(time.time())
-    LASTDATE = int(TODAY - num_days * 24 * 60 * 60)
+    LASTDATE = int(TODAY - args.num_days * 24 * 60 * 60)
     today_datetime = datetime.datetime.fromtimestamp(TODAY)
     lastdate_datetime = datetime.datetime.fromtimestamp(LASTDATE)
 
@@ -194,14 +221,14 @@ if __name__ == '__main__':
     movies_section = library.section(settings.movie_library)
     tvshows_section = library.section(settings.tvshow_library)
 
-    if update != 0:
+    if args.update != 0:
         movies_section.refresh()
         tvshows_section.refresh()
-        time.sleep(wait)
+        time.sleep(args.update_wait)
 
     # Get the recently added movies and tv episodes
-    movies = movies_section.recentlyAdded(max_movies)
-    episodes = tvshows_section.recentlyAdded('episode', max_tv)
+    movies = movies_section.recentlyAdded(args.max_movies)
+    episodes = tvshows_section.recentlyAdded('episode', args.max_tv)
 
     # Filter the episodes based on the passed in time frame
     filtered_episodes = []
@@ -222,21 +249,21 @@ if __name__ == '__main__':
         shows = group_into_shows(filtered_episodes)
 
     # Create the message for the post/push
-    message = parse_intro(num_days, settings)
+    message = parse_intro(args.num_days, settings)
     message += parse_movies(filtered_movies)
-    message += parse_tvshows(shows, num_detailed)
+    message += parse_tvshows(shows, args.num_detailed)
 
-    if test == 0:
+    if args.test == 0:
         # If the notify arg is invalid set it to both
-        if not any(notif in notifiers for notif in NOTIFIERS):
-            notifiers = settings.default_notifier
+        if not any(notif in args.notifiers for notif in NOTIFIERS):
+            args.notifiers = default_args.notifiers
 
         # If the notify arg is PushBullet or both send PushBullet
-        if 'p' in notifiers or 'a' in notifiers:
+        if 'p' in args.notifiers or 'a' in args.notifiers:
             send_pushbullet(message, settings)
 
         # If the notify arg is FB or both make the FB post
-        if 'f' in notifiers or 'a' in notifiers:
+        if 'f' in args.notifiers or 'a' in args.notifiers:
             post_facebook(message, settings)
 
         # TODO: Send email.
@@ -244,10 +271,5 @@ if __name__ == '__main__':
         # if 'e' in notifiers or 'a' in notifiers:
             # send_email(message)
     else:
-        print num_days
-        print notifiers
-        print max_movies
-        print max_tv
-        print num_detailed
-        print test
-        print message
+        print_args(args)
+        print(message)
