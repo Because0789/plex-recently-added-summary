@@ -8,8 +8,9 @@
             - 50 max movies(50)
             - 2 detailed tv episodes per show(2)
             - Don't test the script without sending the notifications(0)
+            - Update the libraries and wait 10 min
 
-        python plex_summary.py -d 5 -n fp -tv 500 -m 100 -nd 5 -t 1
+        python plex_summary.py -d 5 -n fp -tv 500 -m 100 -nd 5 -t 1 -u 1 -w 900
             - Checks 5 days previous(-d 5)
             - Both Facebook and Pushbullet(-n fp)
             - Fetch the last 500 episodes added to the server to check(-tv 500)
@@ -17,6 +18,8 @@
             - Show the details for up to 5 episodes in each show before summarizing(-nd 5)
             - Don't send the notifications, instead print out the message created and other info,
               works with any non-zero(-t 1)
+            - Update the libraries(-u 1)
+            - Wait for 900 sec or 15 min after updating(-w 900)
 """
 from __future__ import unicode_literals
 
@@ -30,6 +33,7 @@ from collections import namedtuple
 from facepy import GraphAPI
 from itertools import groupby
 from plexapi.myplex import MyPlexAccount
+from plexapi.library import LibrarySection
 from pushbullet import Pushbullet
 
 NOTIFIERS = ['a', 'f', 'p', 'e']
@@ -61,7 +65,7 @@ def parse_intro(_days, _settings):
     if _days == 1:
         intro_ = 'The Daily Summary'
     else:
-        intro_ = 'The Summary of the past {0} days'.format(str(_days))
+        intro_ = 'The Summary of the past {0} days'.format(_days)
     intro_ += ' of recently added Movies and TV Shows from {0}:\n'.format(_settings.plex_servername)
     return intro_
 
@@ -74,7 +78,7 @@ def parse_movies(_movies):
         movie_str_ = 'Movies:\n'
         # Loops through the movies concatenating the movie title and year
         for movie_item in _movies:
-            movie_str_ += '-{0} ({1})\n'.format(movie_item.title, str(movie_item.year))
+            movie_str_ += '-{0} ({1})\n'.format(movie_item.title, movie_item.year)
         return movie_str_
 
 
@@ -151,6 +155,10 @@ if __name__ == '__main__':
                         required=False, type=int, default=2)
     parser.add_argument('-t', '--test', help='If testing set to 1, otherwise 0.  Default is 0', required=False,
                         type=int, default=0)
+    parser.add_argument('-u', '--update', help='If you want to update the library set to 1, otherwise 0. Default is 1',
+                        required=False, type=int, default=1)
+    parser.add_argument('-w', '--wait', help='How long to wait, in seconds, after updating the libraries. Default: 600',
+                        required=False, type=int, default=600)
 
     opts = parser.parse_args()
 
@@ -161,6 +169,8 @@ if __name__ == '__main__':
     max_tv = opts.max_tv
     num_detailed = opts.num_detailed
     test = opts.test
+    update = opts.update
+    wait = opts.wait
 
     # Read in the settings from the settings.json
     file_path = os.path.dirname(sys.argv[0])
@@ -178,10 +188,16 @@ if __name__ == '__main__':
     # Get the Plex Server object
     account = MyPlexAccount.signin(settings.plex_username, settings.plex_password)
     plex = account.resource(settings.plex_servername).connect()
+    library = plex.library
 
     # Get the Movies and TV sections of the library
-    movies_section = plex.library.section(settings.movie_library)
-    tvshows_section = plex.library.section(settings.tvshow_library)
+    movies_section = library.section(settings.movie_library)
+    tvshows_section = library.section(settings.tvshow_library)
+
+    if update != 0:
+        movies_section.refresh()
+        tvshows_section.refresh()
+        time.sleep(wait)
 
     # Get the recently added movies and tv episodes
     movies = movies_section.recentlyAdded(max_movies)
