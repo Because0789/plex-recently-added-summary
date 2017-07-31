@@ -1,0 +1,10 @@
+{
+	"num_days":1,
+	"notifiers":"a",
+	"max_movies":50,
+	"max_tv":200,
+	"num_detailed":2,
+	"test":0,
+	"update":0,
+	"update_wait":600
+}
