@@ -205,13 +205,7 @@ if __name__ == '__main__':
     # Grab any passed in args
     args = Args(opts.days, opts.notifiers, opts.max_movies, opts.max_tv,
                 opts.num_detailed, opts.test, opts.update, opts.wait)
-
-    # Create the times
-    TODAY = int(time.time())
-    LASTDATE = int(TODAY - args.num_days * 24 * 60 * 60)
-    today_datetime = datetime.datetime.fromtimestamp(TODAY)
-    lastdate_datetime = datetime.datetime.fromtimestamp(LASTDATE)
-
+    
     # Get the Plex Server object
     account = MyPlexAccount.signin(settings.plex_username, settings.plex_password)
     plex = account.resource(settings.plex_servername).connect()
@@ -225,6 +219,12 @@ if __name__ == '__main__':
         movies_section.refresh()
         tvshows_section.refresh()
         time.sleep(args.update_wait)
+    
+    # Create the times
+    TODAY = int(time.time())
+    LASTDATE = int(TODAY - args.num_days * 24 * 60 * 60)
+    today_datetime = datetime.datetime.fromtimestamp(TODAY)
+    lastdate_datetime = datetime.datetime.fromtimestamp(LASTDATE)
 
     # Get the recently added movies and tv episodes
     movies = movies_section.recentlyAdded(args.max_movies)
