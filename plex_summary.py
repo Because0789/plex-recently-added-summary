@@ -117,15 +117,14 @@ def parse_tvshows(_shows, _num_detailed):
                 # List out each individual episode with Show Name SXXEXX - Episode Name
                 for season_item in show_item.seasons:
                     for episode_item in season_item.episodes:
-                        tvshow_str_ += '--{0} S{1}E{2} - {3}\n'.format(
-                            episode_item.show_name,
+                        tvshow_str_ += '---S{0}E{1} - {2}\n'.format(
                             episode_item.season_num00,
                             episode_item.episode_num00,
                             episode_item.episode_name)
             else:
                 # Otherwise just list how many episodes were added per season.
                 for season_item in show_item.seasons:
-                    tvshow_str_ += '--{0} episodes added in Season {1}.\n'.format(
+                    tvshow_str_ += '---{0} episodes added in Season {1}.\n'.format(
                         str(season_item.num_episodes), season_item.season_num00)
         return tvshow_str_
 
