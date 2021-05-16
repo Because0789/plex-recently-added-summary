@@ -6,5 +6,6 @@
 	"tvshow_library":"TV Shows",
 	"pushbullet_apikey":"",
 	"fb_accesstoken":"",
-	"fb_groupid":""
+	"fb_groupid":"",
+	"discord_webhook":""
 }

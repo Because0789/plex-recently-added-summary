@@ -27,29 +27,32 @@ import argparse
 import datetime
 import json
 import os
-import time
+import requests
 import sys
+import time
 from collections import namedtuple
 from facepy import GraphAPI
 from itertools import groupby
 from plexapi.myplex import MyPlexAccount
 from pushbullet import Pushbullet
 
-NOTIFIERS = ['a', 'f', 'p', 'e']
+NOTIFIERS = ['a', 'f', 'p', 'e', 'd']
 DATA_PATH = '/data'
 ARGS_FILE = 'args.json'
 SETTINGS_FILE = 'settings.json'
 LOG_FILE = 'log.txt'
+DISCORD_MAX_CHARACTERS = 2000
 
 Args = namedtuple('Args', ['num_days', 'notifiers', 'max_movies', 'max_tv', 'num_detailed', 'test', 'update',
                            'update_wait'])
 
 Settings = namedtuple('Settings', ['plex_username', 'plex_password', 'plex_servername', 'movie_library',
-                                   'tvshow_library', 'pushbullet_apikey', 'fb_accesstoken', 'fb_groupid'])
+                                   'tvshow_library', 'pushbullet_apikey', 'fb_accesstoken', 'fb_groupid',
+                                   'discord_webhook'])
 
-Episode = namedtuple('Episode', ['show_name', 'season_num00', 'episode_num00', 'episode_name'])
-Season = namedtuple('Season',   ['show_name', 'season_num00', 'episodes', 'num_episodes'])
-Show = namedtuple('Show',       ['show_name', 'seasons', 'num_episodes'])
+Episode = namedtuple('Episode', ['show_name', 'show_sort_name', 'season_num00', 'episode_num00', 'episode_name'])
+Season = namedtuple('Season', ['show_name', 'season_num00', 'episodes', 'num_episodes'])
+Show = namedtuple('Show', ['show_name', 'seasons', 'num_episodes'])
 
 
 def read_args(_file_path):
@@ -79,7 +82,7 @@ def read_settings(_file_path):
         return Settings(
             json_data['plex_username'], json_data['plex_password'], json_data['plex_servername'],
             json_data['movie_library'], json_data['tvshow_library'], json_data['pushbullet_apikey'],
-            json_data['fb_accesstoken'], json_data['fb_groupid'])
+            json_data['fb_accesstoken'], json_data['fb_groupid'], json_data['discord_webhook'])
 
 
 def parse_intro(_days, _settings):
@@ -125,13 +128,13 @@ def parse_tvshows(_shows, _num_detailed):
                 # Otherwise just list how many episodes were added per season.
                 for season_item in show_item.seasons:
                     tvshow_str_ += '---{0} episodes added in Season {1}.\n'.format(
-                        str(season_item.num_episodes), season_item.season_num00)
+                        str(season_item.num_episodes).zfill(2), season_item.season_num00)
         return tvshow_str_
 
 
 def group_into_shows(_episodes):
     # Sort the list before groupby, otherwise bad things happen.
-    sorted_episodes = sorted(_episodes, key=lambda x: (x.show_name.lower(), x.season_num00, x.episode_num00))
+    sorted_episodes = sorted(_episodes, key=lambda x: (x.show_sort_name.lower(), x.season_num00, x.episode_num00))
     lst_shows_ = []
     # Group the episodes by show
     for key, group in groupby(sorted_episodes, key=lambda x: x.show_name):
@@ -156,6 +159,17 @@ def send_pushbullet(_message, _settings):
 def post_facebook(_message, _settings):
     graph = GraphAPI(_settings.fb_accesstoken)
     graph.post(path='{0}/feed'.format(str(_settings.fb_groupid)), message=_message)
+
+
+def send_discord(_message, _settings):
+    if _settings.discord_webhook == '':
+        return
+
+    #There is a character limit for messages in Discord, gotta split them up and send multiple|
+    #TODO: Find the closest newline to the limit and split based on that.
+    for chunk_start in range(0, len(_message), DISCORD_MAX_CHARACTERS):
+        message_data = {'content': _message[chunk_start:chunk_start + DISCORD_MAX_CHARACTERS]}
+        requests.post(_settings.discord_webhook, message_data)
 
 
 if __name__ == '__main__':
@@ -204,9 +218,9 @@ if __name__ == '__main__':
     # Grab any passed in args
     args = Args(opts.days, opts.notifiers, opts.max_movies, opts.max_tv,
                 opts.num_detailed, opts.test, opts.update, opts.wait)
-    
+
     # Get the Plex Server object
-    account = MyPlexAccount.signin(settings.plex_username, settings.plex_password)
+    account = MyPlexAccount(settings.plex_username, settings.plex_password)
     plex = account.resource(settings.plex_servername).connect()
     library = plex.library
 
@@ -218,39 +232,45 @@ if __name__ == '__main__':
         movies_section.refresh()
         tvshows_section.refresh()
         time.sleep(args.update_wait)
-    
+
     # Create the times
     TODAY = int(time.time())
     LASTDATE = int(TODAY - args.num_days * 24 * 60 * 60)
     today_datetime = datetime.datetime.fromtimestamp(TODAY)
     lastdate_datetime = datetime.datetime.fromtimestamp(LASTDATE)
 
+    added_at = '{0}d'.format(args.num_days)
     # Get the recently added movies and tv episodes
-    movies = movies_section.recentlyAdded(args.max_movies)
-    episodes = tvshows_section.recentlyAdded('episode', args.max_tv)
+    movies = movies_section.search(sort='addedAt:desc', maxresults=args.max_movies, **{"addedAt>>": added_at})
+    episodes = tvshows_section.search(sort='addedAt:desc', libtype='episode',
+                                      maxresults=args.max_tv, **{"addedAt>>": added_at})
+    shows = tvshows_section.recentlyAdded(maxresults=args.max_tv)
 
-    # Filter the episodes based on the passed in time frame
-    filtered_episodes = []
+    # Convert the episodes for grouping and parsing
+    converted_episodes = []
+    show_name = ''
+    sort_name = ''
     for episode in episodes:
-        if lastdate_datetime <= episode.addedAt <= today_datetime:
-            filtered_episodes.append(Episode(episode.grandparentTitle, str(episode.parentIndex).zfill(2),
-                                             str(episode.index).zfill(2), episode.title))
-
-    # Filter the movies based on the passed in time frame
-    filtered_movies = []
-    for movie in movies:
-        if lastdate_datetime <= movie.addedAt <= today_datetime:
-            filtered_movies.append(movie)
+        # Get the sort title for this episode's show so the sort is alphabetically correct
+        # We only have access to the default title of the show from the episode
+        if show_name != episode.grandparentTitle:
+            for show in shows:
+                if show.title == episode.grandparentTitle:
+                    sort_name = show.titleSort
+                    show_name = episode.grandparentTitle
+                    break
+        converted_episodes.append(Episode(show_name, sort_name, str(episode.parentIndex).zfill(2),
+                                          str(episode.index).zfill(2), episode.title))
 
     # If there are any episodes that have been added with the time frame sort them into shows
-    shows = []
-    if len(filtered_episodes) > 0:
-        shows = group_into_shows(filtered_episodes)
+    grouped_shows = []
+    if len(converted_episodes) > 0:
+        grouped_shows = group_into_shows(converted_episodes)
 
     # Create the message for the post/push
     message = parse_intro(args.num_days, settings)
-    message += parse_movies(filtered_movies)
-    message += parse_tvshows(shows, args.num_detailed)
+    message += parse_movies(sorted(movies, key=lambda x: x.titleSort))
+    message += parse_tvshows(grouped_shows, args.num_detailed)
 
     if args.test == 0:
         # If the notify arg is invalid set it to both
@@ -265,10 +285,14 @@ if __name__ == '__main__':
         if 'f' in args.notifiers or 'a' in args.notifiers:
             post_facebook(message, settings)
 
+        # If the notify arg is Discord or both send the Discord message
+        if 'd' in args.notifiers or 'a' in args.notifiers:
+            send_discord(message, settings)
+
         # TODO: Send email.
         # If the notify arg is FB or both make the FB post
         # if 'e' in notifiers or 'a' in notifiers:
-            # send_email(message)
+        # send_email(message)
     else:
         print_args(args)
         print(message)
