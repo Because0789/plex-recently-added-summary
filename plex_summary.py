@@ -165,8 +165,8 @@ def send_discord(_message, _settings):
     if _settings.discord_webhook == '':
         return
 
-    #There is a character limit for messages in Discord, gotta split them up and send multiple|
-    #TODO: Find the closest newline to the limit and split based on that.
+    # There is a character limit for messages in Discord, gotta split them up and send multiple|
+    # TODO: Find the closest newline to the limit and split based on that.
     for chunk_start in range(0, len(_message), DISCORD_MAX_CHARACTERS):
         message_data = {'content': _message[chunk_start:chunk_start + DISCORD_MAX_CHARACTERS]}
         requests.post(_settings.discord_webhook, message_data)
@@ -232,12 +232,6 @@ if __name__ == '__main__':
         movies_section.refresh()
         tvshows_section.refresh()
         time.sleep(args.update_wait)
-
-    # Create the times
-    TODAY = int(time.time())
-    LASTDATE = int(TODAY - args.num_days * 24 * 60 * 60)
-    today_datetime = datetime.datetime.fromtimestamp(TODAY)
-    lastdate_datetime = datetime.datetime.fromtimestamp(LASTDATE)
 
     added_at = '{0}d'.format(args.num_days)
     # Get the recently added movies and tv episodes
