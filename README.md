@@ -8,13 +8,12 @@ A Python Script that, when run, checks your Plex server for recently added and s
 Download the script or clone the repo to a directory of your choice.
 After that you will have to install several things to get this script to work.
 
-1. Python 2.7
+1. Python 3.9
     - Go to https://www.python.org/downloads/ and download python for your platform.
-    - Install Python and remember the directory, should be something like C:/Python27 on Windows machines
+    - Install Python and remember the directory, should be something like C:/Python39 on Windows machines
    >- Optional: Add the path to Python to your Windows PATH.
 
 2. PIP
-	- Newer version of Python 2.7 and 3.4 should come with pip installed.  PATH_TO_PYTHON/Scripts is where it should be.
 	- If you are using a version of Python without pip manual instructions here [PIP Manual Instructions](https://pip.pypa.io/en/stable/installing/#do-i-need-to-install-pip)
    >- Optional: Also add the path to pip to your Windows PATH.
 
@@ -74,8 +73,6 @@ TV Shows:
 --6 episodes added in Season 07.  
 
 ### TODOs:  
-- Send email based on a whitelist in a file  
-- Loop through all library sections(More than just TV Shows and Movies) and make a message chunk for each  
-- Figure out how to get a permenant FB auth token  
+- Send email based on a whitelist in a file
 - Log out to log file(arg for whether or not to clear log file on run or append)  
-- Multiple Libraries?
+- Add lists of libraries instead of a single Movies and TV Show.
